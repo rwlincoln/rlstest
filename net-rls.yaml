@@ -1,0 +1,60 @@
+static_resources:
+  listeners:
+    - name: listener_80
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 80 }
+      filter_chains:
+        - filters:
+            - name: envoy.ratelimit
+              config:
+                stat_prefix: ingress_ratelimit
+                domain: envoy
+                failure_mode_deny: true
+                descriptors:
+                  - entries:
+                      - key: client_id
+                        value: foo
+
+            - name: envoy.http_connection_manager
+              config:
+                codec_type: auto
+                stat_prefix: ingress_http
+                access_log:
+                  name: envoy.file_access_log
+                  config: { path: /dev/stdout }
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          route: { cluster: hello }
+                http_filters:
+                  - name: envoy.router
+                    config: {}
+
+  clusters:
+    - name: ratelimit
+      connect_timeout: 0.25s
+      type: strict_dns
+      lb_policy: round_robin
+      http2_protocol_options: {}
+      hosts:
+        - socket_address: { address: ratelimit, port_value: 8081 }
+
+    - name: hello
+      connect_timeout: 0.25s
+      type: strict_dns
+      lb_policy: round_robin
+      hosts:
+        - socket_address: { address: hello, port_value: 8080 }
+
+rate_limit_service:
+  grpc_service:
+    envoy_grpc: { cluster_name: ratelimit }
+
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 8001 }

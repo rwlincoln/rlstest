@@ -1,0 +1,25 @@
+---
+domain: envoy
+descriptors:
+  - key: remote_address
+    rate_limit:
+      unit: minute
+      requests_per_unit: 3
+
+  - key: client_id
+    value: foo
+    rate_limit:
+      unit: minute
+      requests_per_unit: 3
+
+  - key: destination_cluster
+    value: hello
+    rate_limit:
+      unit: minute
+      requests_per_unit: 3
+
+  - key: generic_key
+    value: bar
+    rate_limit:
+      unit: minute
+      requests_per_unit: 3

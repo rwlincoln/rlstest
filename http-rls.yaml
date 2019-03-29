@@ -1,0 +1,64 @@
+static_resources:
+  listeners:
+    - name: listener_80
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 80 }
+      filter_chains:
+        - filters:
+            - name: envoy.http_connection_manager
+              config:
+                codec_type: auto
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      rate_limits:
+                        - stage: 0
+                          actions:
+                            - remote_address: {}
+                      routes:
+                        - match: { prefix: "/" }
+                          route:
+                            cluster: hello
+                            include_vh_rate_limits: true
+                            rate_limits:
+                              - actions:
+                                  - destination_cluster: {}
+                                  - generic_key: { descriptor_value: bar }
+                http_filters:
+                  - name: envoy.router
+                    config: {}
+                  - name: envoy.rate_limit
+                    config:
+                      domain: envoy
+                      failure_mode_deny: true
+#                      rate_limit_service:
+#                        grpc_service:
+#                          envoy_grpc: { cluster_name: ratelimit }
+
+  clusters:
+    - name: ratelimit
+      connect_timeout: 0.25s
+      type: strict_dns
+      lb_policy: round_robin
+      http2_protocol_options: {}
+      hosts:
+        - socket_address: { address: ratelimit, port_value: 8081 }
+
+    - name: hello
+      connect_timeout: 0.25s
+      type: strict_dns
+      lb_policy: round_robin
+      hosts:
+        - socket_address: { address: hello, port_value: 8080 }
+
+rate_limit_service:
+  grpc_service:
+    envoy_grpc: { cluster_name: ratelimit }
+
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 8001 }

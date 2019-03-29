@@ -1,0 +1,62 @@
+version: "3.2"
+services:
+  front:
+    image: envoyproxy/envoy
+    networks:
+      - envoymesh
+    expose:
+      - "80"
+      - "8001"
+    ports:
+      - "8080:80"
+      - "8001:8001"
+    volumes:
+      - ./$ENVOY_CONFIG_FILE:/etc/envoy/envoy.yaml
+    command: /usr/local/bin/envoy -c /etc/envoy/envoy.yaml --service-cluster front-proxy
+
+  redis:
+    image: redis:alpine
+    expose:
+      - "6379"
+    networks:
+      envoymesh:
+        aliases:
+          - redis
+
+  ratelimit:
+    image: lyft/ratelimit
+    build:
+      dockerfile: ratelimit.dockerfile
+      context: .
+    depends_on:
+      - redis
+    command: /usr/local/bin/ratelimit
+    networks:
+      envoymesh:
+        aliases:
+          - ratelimit
+    volumes:
+      - ./ratelimit.yaml:/data/ratelimit/config.yml
+    environment:
+      - USE_STATSD=false
+#      - LOG_LEVEL=info
+      - LOG_LEVEL=debug
+      - REDIS_SOCKET_TYPE=tcp
+      - REDIS_URL=redis:6379
+      - RUNTIME_ROOT=/data
+      - RUNTIME_SUBDIRECTORY=ratelimit
+
+  hello:
+    image: hashicorp/http-echo
+    depends_on:
+      - front
+    expose:
+      - "8080"
+    networks:
+      envoymesh:
+        aliases:
+          - hello
+    command: -listen=:8080 -text="hello world"
+
+networks:
+  envoymesh: {}
