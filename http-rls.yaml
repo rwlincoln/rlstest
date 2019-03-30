@@ -18,14 +18,19 @@ static_resources:
                         - stage: 0
                           actions:
                             - remote_address: {}
+                        - stage: 0
+                          actions:
+                            - destination_cluster: {}
                       routes:
                         - match: { prefix: "/" }
                           route:
                             cluster: hello
                             include_vh_rate_limits: true
                             rate_limits:
+                              # If an action cannot append a descriptor entry, no descriptor is generated for the configuration.
                               - actions:
-                                  - destination_cluster: {}
+                                  - request_headers: { header_name: content-type, descriptor_key: content-type }
+                              - actions:
                                   - generic_key: { descriptor_value: bar }
                 http_filters:
                   - name: envoy.rate_limit
