@@ -28,8 +28,6 @@ static_resources:
                                   - destination_cluster: {}
                                   - generic_key: { descriptor_value: bar }
                 http_filters:
-                  - name: envoy.router
-                    config: {}
                   - name: envoy.rate_limit
                     config:
                       domain: envoy
@@ -37,7 +35,8 @@ static_resources:
 #                      rate_limit_service:
 #                        grpc_service:
 #                          envoy_grpc: { cluster_name: ratelimit }
-
+                  - name: envoy.router
+                    config: {}
   clusters:
     - name: ratelimit
       connect_timeout: 0.25s
